@@ -12,14 +12,13 @@ export async function generateAIResponse(
 ) {
   const apiKey = settings.superNsfwMode && settings.customApiKey ? settings.customApiKey : GEMINI_API_KEY;
   
-  try {
-    if (!apiKey) {
-      throw new Error("API Key not found");
-    }
+  if (!apiKey) {
+    throw new Error("API Key not found");
+  }
 
-    const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey });
 
-    const systemInstruction = `
+  const systemInstruction = `
     Eres un experto en roleplay. Estás interpretando a ${character.name}.
     Descripción de ${character.name}: ${character.description}
     Personalidad: ${character.personality}
@@ -68,6 +67,7 @@ export async function generateAIResponse(
     { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
   ] : undefined;
 
+  try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents,
@@ -93,12 +93,13 @@ export async function generateAIImage(prompt: string, settings: Settings) {
     apiKey = settings.customApiKey;
   }
   
+  if (!apiKey) {
+    throw new Error("API Key not found");
+  }
+
   const ai = new GoogleGenAI({ apiKey });
 
   try {
-    if (!apiKey) {
-      throw new Error("API Key not found");
-    }
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: [
