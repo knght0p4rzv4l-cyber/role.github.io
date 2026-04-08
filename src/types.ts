@@ -8,7 +8,13 @@ export interface Character {
   firstMessage: string;
   isGroup?: boolean;
   memberIds?: string[]; // For groups
+  suspendedMemberIds?: string[]; // For suspended members in groups
   chatStyle: 'whatsapp' | 'roleplay';
+  voiceSettings?: {
+    gender: 'male' | 'female';
+    tone: 'sweet' | 'deep';
+    sampleAudio?: string; // Base64
+  };
 }
 
 export interface Message {
@@ -44,6 +50,7 @@ export interface Settings {
   superImages: boolean;
   darkMode: boolean;
   autoMessages: boolean;
+  betaCallMode: boolean;
   chatBackground?: string;
   customApiKey?: string;
   superImagesApiKey?: string;

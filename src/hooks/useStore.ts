@@ -18,6 +18,7 @@ const defaultSettings: Settings = {
   superImages: false,
   darkMode: false,
   autoMessages: false,
+  betaCallMode: false,
 };
 
 const defaultProfile: UserProfile = {

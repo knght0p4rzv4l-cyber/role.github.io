@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Character, Chat, Message, UserProfile, Settings } from '@/types';
 import { NavBar } from '../ios/NavBar';
 import { ChatBubble } from '../ios/ChatBubble';
-import { Send, Image as ImageIcon, Sparkles, Trash2, Plus, Camera, Wand2 } from 'lucide-react';
+import { Send, Image as ImageIcon, Sparkles, Trash2, Plus, Camera, Wand2, Phone, X, UserPlus, ShieldOff } from 'lucide-react';
 import { generateAIResponse, generateAIImage } from '@/lib/ai';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useStore } from '@/hooks/useStore';
@@ -32,6 +32,8 @@ export function ChatView({
   const [isTyping, setIsTyping] = useState(false);
   const [userImage, setUserImage] = useState<string | null>(null);
   const [showActions, setShowActions] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
+  const [isCalling, setIsCalling] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -84,8 +86,9 @@ export function ChatView({
     setUserImage(null);
     
     if (character.isGroup && character.memberIds) {
-      // Group logic: each member responds
+      // Group logic: each member responds (if not suspended)
       for (const memberId of character.memberIds) {
+        if (character.suspendedMemberIds?.includes(memberId)) continue;
         const member = storeCharacters.find(c => c.id === memberId);
         if (member) {
           await respondAs(member);
@@ -122,8 +125,10 @@ export function ChatView({
 
   const handleContinue = async () => {
     if (character.isGroup && character.memberIds) {
-      // Random member continues or all? Let's pick one random for "continue"
-      const randomId = character.memberIds[Math.floor(Math.random() * character.memberIds.length)];
+      // Random member continues or all? Let's pick one random for "continue" (not suspended)
+      const activeMembers = character.memberIds.filter(id => !character.suspendedMemberIds?.includes(id));
+      if (activeMembers.length === 0) return;
+      const randomId = activeMembers[Math.floor(Math.random() * activeMembers.length)];
       const member = storeCharacters.find(c => c.id === randomId);
       if (member) await respondAs(member);
     } else {
@@ -166,14 +171,147 @@ export function ChatView({
   return (
     <div className="fixed inset-0 bg-[#E5DDD5] flex flex-col z-[60]">
       <NavBar
-        title={character.name}
-        onBack={onBack}
-        rightAction={
-          <button onClick={onClearChat} className="text-red-500">
-            <Trash2 className="w-6 h-6" />
+        title={
+          <button onClick={() => setShowInfo(true)} className="flex items-center space-x-2">
+            <Avatar className="w-8 h-8">
+              <AvatarImage src={character.avatar} />
+              <AvatarFallback>{character.name[0]}</AvatarFallback>
+            </Avatar>
+            <span className="font-semibold">{character.name}</span>
           </button>
         }
+        onBack={onBack}
+        rightAction={
+          <div className="flex items-center space-x-2">
+            {!character.isGroup && settings.betaCallMode && (
+              <button onClick={() => setIsCalling(true)} className="text-ios-blue">
+                <Phone className="w-6 h-6" />
+              </button>
+            )}
+            <button onClick={onClearChat} className="text-red-500">
+              <Trash2 className="w-6 h-6" />
+            </button>
+          </div>
+        }
       />
+
+      {/* Info Modal */}
+      <AnimatePresence>
+        {showInfo && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl"
+            >
+              <div className="p-6 flex flex-col items-center text-center">
+                <Avatar className="w-24 h-24 mb-4 border-4 border-ios-blue/20">
+                  <AvatarImage src={character.avatar} />
+                  <AvatarFallback className="text-3xl">{character.name[0]}</AvatarFallback>
+                </Avatar>
+                <h2 className="text-2xl font-bold dark:text-white mb-1">{character.name}</h2>
+                <p className="text-sm text-ios-text-secondary dark:text-gray-400 mb-4">{character.description}</p>
+                
+                <div className="w-full space-y-4 text-left">
+                  <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-xl">
+                    <p className="text-[10px] font-bold text-ios-blue uppercase mb-1">Personalidad</p>
+                    <p className="text-sm dark:text-gray-300">{character.personality}</p>
+                  </div>
+                  
+                  {character.isGroup && (
+                    <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-xl">
+                      <p className="text-[10px] font-bold text-ios-blue uppercase mb-2">Integrantes ({character.memberIds?.length || 0})</p>
+                      <div className="flex flex-wrap gap-2">
+                        {character.memberIds?.map(id => {
+                          const m = storeCharacters.find(c => c.id === id);
+                          const isSuspended = character.suspendedMemberIds?.includes(id);
+                          return m ? (
+                            <div key={id} className={cn(
+                              "flex items-center space-x-1 px-2 py-1 rounded-full border text-[10px]",
+                              isSuspended ? "bg-red-50 border-red-200 text-red-500" : "bg-blue-50 border-blue-200 text-ios-blue"
+                            )}>
+                              <Avatar className="w-4 h-4">
+                                <AvatarImage src={m.avatar} />
+                                <AvatarFallback>{m.name[0]}</AvatarFallback>
+                              </Avatar>
+                              <span>{m.name}</span>
+                              {isSuspended && <ShieldOff className="w-2 h-2 ml-1" />}
+                            </div>
+                          ) : null;
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <button 
+                  onClick={() => setShowInfo(false)}
+                  className="mt-6 w-full bg-ios-blue text-white py-3 rounded-xl font-semibold"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Call Modal */}
+      <AnimatePresence>
+        {isCalling && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-0 bg-gray-900 z-[110] flex flex-col items-center justify-between py-20 px-6"
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="relative">
+                <Avatar className="w-32 h-32 mb-6 border-4 border-ios-blue animate-pulse">
+                  <AvatarImage src={character.avatar} />
+                  <AvatarFallback className="text-4xl">{character.name[0]}</AvatarFallback>
+                </Avatar>
+                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-ios-blue text-white text-[10px] px-2 py-0.5 rounded-full">
+                  BETA
+                </div>
+              </div>
+              <h2 className="text-3xl font-bold text-white mb-2">{character.name}</h2>
+              <p className="text-ios-blue animate-pulse">Llamada en curso...</p>
+            </div>
+
+            <div className="w-full max-w-xs space-y-8">
+              <div className="flex justify-center space-x-12">
+                <div className="flex flex-col items-center space-y-2">
+                  <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-white">
+                    <ImageIcon className="w-8 h-8" />
+                  </div>
+                  <span className="text-xs text-white/60">Video</span>
+                </div>
+                <div className="flex flex-col items-center space-y-2">
+                  <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-white">
+                    <Sparkles className="w-8 h-8" />
+                  </div>
+                  <span className="text-xs text-white/60">Efectos</span>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setIsCalling(false)}
+                className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center text-white mx-auto shadow-xl active:scale-90 transition-transform"
+              >
+                <X className="w-10 h-10" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div 
         ref={scrollRef}

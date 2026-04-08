@@ -28,7 +28,10 @@ export function CharacterEditor({ character, characters, onSave, onCancel, onDel
   const [isGroup, setIsGroup] = useState(character?.isGroup || false);
   const [chatStyle, setChatStyle] = useState<'whatsapp' | 'roleplay'>(character?.chatStyle || 'whatsapp');
   const [memberIds, setMemberIds] = useState<string[]>(character?.memberIds || []);
+  const [suspendedMemberIds, setSuspendedMemberIds] = useState<string[]>(character?.suspendedMemberIds || []);
+  const [voiceSettings, setVoiceSettings] = useState(character?.voiceSettings || { gender: 'female', tone: 'sweet' });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -54,7 +57,20 @@ export function CharacterEditor({ character, characters, onSave, onCancel, onDel
       isGroup,
       chatStyle,
       memberIds: isGroup ? memberIds : undefined,
+      suspendedMemberIds: isGroup ? suspendedMemberIds : undefined,
+      voiceSettings: !isGroup ? voiceSettings : undefined,
     });
+  };
+
+  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setVoiceSettings(prev => ({ ...prev, sampleAudio: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const toggleMember = (id: string) => {
@@ -121,25 +137,89 @@ export function CharacterEditor({ character, characters, onSave, onCancel, onDel
 
           {isGroup && (
             <div className="space-y-2">
-              <Label className="dark:text-gray-300">Miembros del Grupo</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <Label className="dark:text-gray-300">Integrantes y Suspensión</Label>
+              <div className="space-y-2">
                 {characters.filter(c => !c.isGroup).map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => toggleMember(c.id)}
-                    className={`flex items-center space-x-2 p-2 rounded-lg border text-sm transition-colors ${
-                      memberIds.includes(c.id) 
-                        ? 'bg-ios-blue/10 border-ios-blue dark:bg-ios-blue/20' 
-                        : 'bg-gray-50 border-gray-200 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300'
-                    }`}
-                  >
-                    <Avatar className="w-6 h-6">
-                      <AvatarImage src={c.avatar} />
-                      <AvatarFallback>{c.name[0]}</AvatarFallback>
-                    </Avatar>
-                    <span className="truncate">{c.name}</span>
-                  </button>
+                  <div key={c.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-900 rounded-lg border dark:border-gray-700">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={memberIds.includes(c.id)}
+                        onChange={() => toggleMember(c.id)}
+                        className="w-4 h-4 rounded border-gray-300 text-ios-blue focus:ring-ios-blue"
+                      />
+                      <span className="text-sm dark:text-white">{c.name}</span>
+                    </div>
+                    {memberIds.includes(c.id) && (
+                      <button
+                        onClick={() => {
+                          if (suspendedMemberIds.includes(c.id)) {
+                            setSuspendedMemberIds(suspendedMemberIds.filter(id => id !== c.id));
+                          } else {
+                            setSuspendedMemberIds([...suspendedMemberIds, c.id]);
+                          }
+                        }}
+                        className={cn(
+                          "text-[10px] px-2 py-1 rounded-full border transition-colors",
+                          suspendedMemberIds.includes(c.id)
+                            ? "bg-red-500 text-white border-red-500"
+                            : "bg-green-500 text-white border-green-500"
+                        )}
+                      >
+                        {suspendedMemberIds.includes(c.id) ? "Suspendido" : "Activo"}
+                      </button>
+                    )}
+                  </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {!isGroup && (
+            <div className="space-y-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-xl border dark:border-gray-700">
+              <Label className="dark:text-gray-300 font-bold">Configuración de Voz (Beta)</Label>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[10px] dark:text-gray-400">Género</Label>
+                  <select 
+                    value={voiceSettings.gender}
+                    onChange={(e) => setVoiceSettings(prev => ({ ...prev, gender: e.target.value as any }))}
+                    className="w-full bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-1.5 text-xs dark:text-white"
+                  >
+                    <option value="female">Femenina</option>
+                    <option value="male">Masculina</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] dark:text-gray-400">Tono</Label>
+                  <select 
+                    value={voiceSettings.tone}
+                    onChange={(e) => setVoiceSettings(prev => ({ ...prev, tone: e.target.value as any }))}
+                    className="w-full bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-1.5 text-xs dark:text-white"
+                  >
+                    <option value="sweet">Dulce</option>
+                    <option value="deep">Grave</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[10px] dark:text-gray-400">Audio de Ejemplo (Opcional)</Label>
+                <div className="flex items-center space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 text-[10px] flex-1"
+                    onClick={() => audioInputRef.current?.click()}
+                  >
+                    {voiceSettings.sampleAudio ? "Cambiar Audio" : "Subir Audio"}
+                  </Button>
+                  {voiceSettings.sampleAudio && (
+                    <button onClick={() => setVoiceSettings(prev => ({ ...prev, sampleAudio: undefined }))} className="text-red-500 text-[10px]">Borrar</button>
+                  )}
+                  <input type="file" ref={audioInputRef} className="hidden" accept="audio/*" onChange={handleAudioUpload} />
+                </div>
               </div>
             </div>
           )}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Character, Chat } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
@@ -12,6 +12,20 @@ interface ChatListProps {
 }
 
 export function ChatList({ characters, chats, onChatSelect, onEditCharacter }: ChatListProps) {
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const handleTouchStart = (char: Character) => {
+    longPressTimer.current = setTimeout(() => {
+      onEditCharacter(char);
+    }, 600); // 600ms for long press
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+    }
+  };
+
   if (characters.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center mt-20 text-ios-text-secondary">
@@ -30,7 +44,15 @@ export function ChatList({ characters, chats, onChatSelect, onEditCharacter }: C
             key={char.id}
             className="flex items-center px-4 py-3 active:bg-gray-100 dark:active:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0"
           >
-            <div className="flex-1 flex items-center space-x-3 cursor-pointer" onClick={() => onChatSelect(char.id)}>
+            <div 
+              className="flex-1 flex items-center space-x-3 cursor-pointer" 
+              onClick={() => onChatSelect(char.id)}
+              onMouseDown={() => handleTouchStart(char)}
+              onMouseUp={handleTouchEnd}
+              onMouseLeave={handleTouchEnd}
+              onTouchStart={() => handleTouchStart(char)}
+              onTouchEnd={handleTouchEnd}
+            >
               <Avatar className="w-14 h-14">
                 <AvatarImage src={char.avatar} />
                 <AvatarFallback className="bg-ios-blue text-white text-xl">

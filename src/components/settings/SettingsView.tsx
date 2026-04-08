@@ -4,7 +4,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Shield, ShieldAlert, Type, Image as ImageIcon, Key, Moon, Sun, Palette, Sparkles } from 'lucide-react';
+import { Shield, ShieldAlert, Type, Image as ImageIcon, Key, Moon, Sun, Palette, Sparkles, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SettingsViewProps {
@@ -209,6 +209,28 @@ export function SettingsView({ settings, onUpdate }: SettingsViewProps) {
           <Switch 
             checked={settings.autoMessages} 
             onCheckedChange={(val) => onUpdate({ autoMessages: val })} 
+          />
+        </div>
+
+        <div className={cn(
+          "p-4 flex items-center justify-between border-b",
+          settings.darkMode ? "border-gray-700" : "border-gray-100"
+        )}>
+          <div className="flex items-center space-x-3">
+            <div className="bg-blue-600 p-1.5 rounded-lg text-white">
+              <Phone className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-medium">Modo Llamada (Beta)</p>
+              <p className={cn(
+                "text-xs",
+                settings.darkMode ? "text-gray-400" : "text-ios-text-secondary"
+              )}>Habilita llamadas de voz con las IAs</p>
+            </div>
+          </div>
+          <Switch 
+            checked={settings.betaCallMode} 
+            onCheckedChange={(val) => onUpdate({ betaCallMode: val })} 
           />
         </div>
 
