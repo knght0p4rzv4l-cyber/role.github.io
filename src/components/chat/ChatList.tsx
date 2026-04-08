@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Character, Chat } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
@@ -12,17 +12,26 @@ interface ChatListProps {
 }
 
 export function ChatList({ characters, chats, onChatSelect, onEditCharacter }: ChatListProps) {
-  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimer = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    };
+  }, []);
 
   const handleTouchStart = (char: Character) => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
     longPressTimer.current = setTimeout(() => {
       onEditCharacter(char);
+      longPressTimer.current = null;
     }, 600); // 600ms for long press
   };
 
   const handleTouchEnd = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
     }
   };
 

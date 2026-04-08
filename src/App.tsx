@@ -52,7 +52,7 @@ export default function App() {
         userProfile={store.userProfile}
         settings={store.settings}
         onBack={() => setActiveChatId(null)}
-        onAddMessage={(msg) => store.addMessage(activeChatId, msg)}
+        onAddMessage={(msg, isFromAI) => store.addMessage(activeChatId, msg, isFromAI)}
         onClearChat={() => store.clearChat(activeChatId)}
       />
     );

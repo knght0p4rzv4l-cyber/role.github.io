@@ -72,30 +72,34 @@ export function ChatView({
   const handleSend = async () => {
     if (!inputText.trim() && !userImage) return;
 
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      senderId: 'user',
-      senderName: userProfile.name,
-      text: inputText,
-      timestamp: Date.now(),
-      image: userImage || undefined,
-    };
+    try {
+      const userMsg: Message = {
+        id: Date.now().toString(),
+        senderId: 'user',
+        senderName: userProfile.name,
+        text: inputText,
+        timestamp: Date.now(),
+        image: userImage || undefined,
+      };
 
-    onAddMessage(userMsg, false);
-    setInputText('');
-    setUserImage(null);
-    
-    if (character.isGroup && character.memberIds) {
-      // Group logic: each member responds (if not suspended)
-      for (const memberId of character.memberIds) {
-        if (character.suspendedMemberIds?.includes(memberId)) continue;
-        const member = storeCharacters.find(c => c.id === memberId);
-        if (member) {
-          await respondAs(member);
+      onAddMessage(userMsg, false);
+      setInputText('');
+      setUserImage(null);
+      
+      if (character.isGroup && character.memberIds) {
+        // Group logic: each member responds (if not suspended)
+        for (const memberId of character.memberIds) {
+          if (character.suspendedMemberIds?.includes(memberId)) continue;
+          const member = storeCharacters.find(c => c.id === memberId);
+          if (member) {
+            await respondAs(member);
+          }
         }
+      } else {
+        await respondAs(character);
       }
-    } else {
-      await respondAs(character);
+    } catch (error) {
+      console.error('Error in handleSend:', error);
     }
   };
 
@@ -124,15 +128,19 @@ export function ChatView({
   };
 
   const handleContinue = async () => {
-    if (character.isGroup && character.memberIds) {
-      // Random member continues or all? Let's pick one random for "continue" (not suspended)
-      const activeMembers = character.memberIds.filter(id => !character.suspendedMemberIds?.includes(id));
-      if (activeMembers.length === 0) return;
-      const randomId = activeMembers[Math.floor(Math.random() * activeMembers.length)];
-      const member = storeCharacters.find(c => c.id === randomId);
-      if (member) await respondAs(member);
-    } else {
-      await respondAs(character);
+    try {
+      if (character.isGroup && character.memberIds) {
+        // Random member continues or all? Let's pick one random for "continue" (not suspended)
+        const activeMembers = character.memberIds.filter(id => !character.suspendedMemberIds?.includes(id));
+        if (activeMembers.length === 0) return;
+        const randomId = activeMembers[Math.floor(Math.random() * activeMembers.length)];
+        const member = storeCharacters.find(c => c.id === randomId);
+        if (member) await respondAs(member);
+      } else {
+        await respondAs(character);
+      }
+    } catch (error) {
+      console.error('Error in handleContinue:', error);
     }
   };
 
