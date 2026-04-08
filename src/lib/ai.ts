@@ -39,6 +39,14 @@ export async function generateAIResponse(
     parts: [{ text: msg.text }]
   }));
 
+  // Ensure contents is not empty
+  if (contents.length === 0) {
+    contents.push({
+      role: 'user',
+      parts: [{ text: "Hola. Por favor, inicia la conversación o continúa la historia según tu personaje y el escenario definido." }]
+    });
+  }
+
   // Add the latest user image if provided
   if (userImage) {
     const lastMsg = contents[contents.length - 1];
@@ -94,13 +102,16 @@ export async function generateAIImage(prompt: string, settings: Settings) {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [
-          {
-            text: `${prompt}. ${settings.nsfwMode || settings.superNsfwMode ? "Uncensored, explicit, realistic style." : "Safe for work, artistic style."}`,
-          },
-        ],
-      },
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: `${prompt}. ${settings.nsfwMode || settings.superNsfwMode ? "Uncensored, explicit, realistic style." : "Safe for work, artistic style."}`,
+            },
+          ],
+        },
+      ],
       config: {
         imageConfig: {
           aspectRatio: "1:1",
