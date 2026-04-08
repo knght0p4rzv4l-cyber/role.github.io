@@ -1,10 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Character, Message, Settings, UserProfile } from "../types";
 
-const getApiKey = (settings: Settings) => {
-  const envKey = typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined;
-  return settings.superNsfwMode && settings.customApiKey ? settings.customApiKey : envKey;
-};
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 export async function generateAIResponse(
   character: Character,
@@ -13,14 +10,13 @@ export async function generateAIResponse(
   settings: Settings,
   userImage?: string // Base64
 ) {
-  try {
-    const apiKey = getApiKey(settings);
-    
-    if (!apiKey) {
-      return "⚠️ API Key no encontrada. Si estás en Vercel, asegúrate de haber configurado la variable de entorno GEMINI_API_KEY en el panel de control de Vercel.";
-    }
+  const apiKey = settings.superNsfwMode && settings.customApiKey ? settings.customApiKey : GEMINI_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error("API Key not found");
+  }
 
-    const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey });
 
   const systemInstruction = `
     Eres un experto en roleplay. Estás interpretando a ${character.name}.
@@ -38,52 +34,29 @@ export async function generateAIResponse(
     5. Estilo de escritura: ${character.chatStyle === 'roleplay' ? "Roleplay clásico. Las acciones deben ir entre asteriscos (ej: *se ríe* Hola). No uses el estilo de chat de WhatsApp." : "Estilo WhatsApp. Escribe como si fuera un mensaje de texto real, sin asteriscos para acciones a menos que sea necesario."}
   `;
 
-  // Prepare contents with alternating roles and merging consecutive same-role messages
-  let contents: { role: string; parts: { text: string }[] }[] = [];
-  
-  if (history.length === 0) {
+  const contents = history.map(msg => ({
+    role: msg.senderId === 'user' ? 'user' : 'model',
+    parts: [{ text: msg.text }]
+  }));
+
+  // Ensure contents is not empty
+  if (contents.length === 0) {
     contents.push({
       role: 'user',
       parts: [{ text: "Hola. Por favor, inicia la conversación o continúa la historia según tu personaje y el escenario definido." }]
     });
-  } else {
-    history.forEach((msg) => {
-      const role = msg.senderId === 'user' ? 'user' : 'model';
-      const lastContent = contents[contents.length - 1];
-      
-      if (lastContent && lastContent.role === role) {
-        // Merge consecutive messages from the same role
-        lastContent.parts[0].text += `\n\n${msg.text}`;
-      } else {
-        contents.push({
-          role,
-          parts: [{ text: msg.text }]
-        });
-      }
-    });
   }
 
-  // Gemini requires the last message to be from 'user' to generate a 'model' response
-  if (contents[contents.length - 1].role === 'model') {
-    contents.push({
-      role: 'user',
-      parts: [{ text: "Continúa la historia/conversación." }]
-    });
-  }
-
-  // Add the latest user image if provided (attach to the last user message)
+  // Add the latest user image if provided
   if (userImage) {
-    // Find the last user message to attach the image
-    for (let i = contents.length - 1; i >= 0; i--) {
-      if (contents[i].role === 'user') {
-        contents[i].parts.push({
-          inlineData: {
-            mimeType: "image/jpeg",
-            data: userImage.split(',')[1] // Remove prefix
-          }
-        } as any);
-        break;
-      }
+    const lastMsg = contents[contents.length - 1];
+    if (lastMsg && lastMsg.role === 'user') {
+      lastMsg.parts.push({
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: userImage.split(',')[1] // Remove prefix
+        }
+      } as any);
     }
   }
 
@@ -94,6 +67,7 @@ export async function generateAIResponse(
     { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
   ] : undefined;
 
+  try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents,
@@ -111,23 +85,21 @@ export async function generateAIResponse(
 }
 
 export async function generateAIImage(prompt: string, settings: Settings) {
+  let apiKey = GEMINI_API_KEY;
+  
+  if (settings.superImages && settings.superImagesApiKey) {
+    apiKey = settings.superImagesApiKey;
+  } else if (settings.superNsfwMode && settings.customApiKey) {
+    apiKey = settings.customApiKey;
+  }
+  
+  if (!apiKey) {
+    throw new Error("API Key not found");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
   try {
-    const envKey = typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined;
-    let apiKey = envKey;
-    
-    if (settings.superImages && settings.superImagesApiKey) {
-      apiKey = settings.superImagesApiKey;
-    } else if (settings.superNsfwMode && settings.customApiKey) {
-      apiKey = settings.customApiKey;
-    }
-    
-    if (!apiKey) {
-      console.error("API Key not found for image generation");
-      return null;
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
-
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: [
