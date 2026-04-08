@@ -1,0 +1,114 @@
+import { GoogleGenAI, Type } from "@google/genai";
+import { Character, Message, Settings, UserProfile } from "../types";
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+export async function generateAIResponse(
+  character: Character,
+  history: Message[],
+  userProfile: UserProfile,
+  settings: Settings,
+  userImage?: string // Base64
+) {
+  const apiKey = settings.superNsfwMode && settings.customApiKey ? settings.customApiKey : GEMINI_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error("API Key not found");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
+  const systemInstruction = `
+    Eres un experto en roleplay. Estás interpretando a ${character.name}.
+    Descripción de ${character.name}: ${character.description}
+    Personalidad: ${character.personality}
+    Escenario actual: ${character.scenario}
+    
+    El usuario es: ${userProfile.name} (${userProfile.description})
+    
+    Reglas:
+    1. Mantente siempre en el personaje.
+    2. No rompas la cuarta pared.
+    3. ${settings.shortWriting ? "Tus respuestas deben ser cortas y directas." : "Tus respuestas deben ser detalladas y narrativas."}
+    4. ${settings.nsfwMode || settings.superNsfwMode ? "El modo NSFW está activado. Puedes ser explícito, violento o sugerente si la situación lo requiere, sin censura moral." : "Mantén un tono apropiado para todos los públicos."}
+  `;
+
+  const contents = history.map(msg => ({
+    role: msg.senderId === 'user' ? 'user' : 'model',
+    parts: [{ text: msg.text }]
+  }));
+
+  // Add the latest user image if provided
+  if (userImage) {
+    const lastMsg = contents[contents.length - 1];
+    if (lastMsg && lastMsg.role === 'user') {
+      lastMsg.parts.push({
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: userImage.split(',')[1] // Remove prefix
+        }
+      } as any);
+    }
+  }
+
+  const safetySettings = (settings.nsfwMode || settings.superNsfwMode) ? [
+    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+  ] : undefined;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents,
+      config: {
+        systemInstruction,
+        safetySettings: safetySettings as any,
+      }
+    });
+
+    return response.text || "No pude generar una respuesta.";
+  } catch (error) {
+    console.error("AI Error:", error);
+    return "Error al conectar con la IA. Revisa tu conexión o configuración.";
+  }
+}
+
+export async function generateAIImage(prompt: string, settings: Settings) {
+  const apiKey = settings.superNsfwMode && settings.customApiKey ? settings.customApiKey : GEMINI_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error("API Key not found");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [
+          {
+            text: `${prompt}. ${settings.nsfwMode || settings.superNsfwMode ? "Uncensored, explicit, realistic style." : "Safe for work, artistic style."}`,
+          },
+        ],
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "1:1",
+        },
+      },
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error("Image Generation Error:", error);
+    return null;
+  }
+}
