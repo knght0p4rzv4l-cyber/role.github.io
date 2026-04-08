@@ -101,26 +101,39 @@ export function ChatView({
 
   const respondAs = async (char: Character) => {
     setIsTyping(true);
-    const history = chat?.messages || [];
-    const responseText = await generateAIResponse(
-      char,
-      history,
-      userProfile,
-      settings,
-      undefined
-    );
+    try {
+      const history = chat?.messages || [];
+      const responseText = await generateAIResponse(
+        char,
+        history,
+        userProfile,
+        settings,
+        undefined
+      );
 
-    const aiMsg: Message = {
-      id: Date.now().toString() + Math.random(),
-      senderId: char.id,
-      senderName: char.name,
-      senderAvatar: char.avatar,
-      text: responseText,
-      timestamp: Date.now(),
-    };
+      const aiMsg: Message = {
+        id: Date.now().toString() + Math.random(),
+        senderId: char.id,
+        senderName: char.name,
+        senderAvatar: char.avatar,
+        text: responseText,
+        timestamp: Date.now(),
+      };
 
-    onAddMessage(aiMsg, true);
-    setIsTyping(false);
+      onAddMessage(aiMsg, true);
+    } catch (error) {
+      console.error("Error in respondAs:", error);
+      const errorMsg: Message = {
+        id: Date.now().toString(),
+        senderId: 'system',
+        senderName: 'Sistema',
+        text: "Error al generar respuesta. Revisa tu configuración o API Key.",
+        timestamp: Date.now(),
+      };
+      onAddMessage(errorMsg);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleContinue = async () => {

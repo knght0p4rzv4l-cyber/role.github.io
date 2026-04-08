@@ -13,13 +13,14 @@ export async function generateAIResponse(
   settings: Settings,
   userImage?: string // Base64
 ) {
-  const apiKey = getApiKey(settings);
-  
-  if (!apiKey) {
-    throw new Error("API Key not found. Por favor, configura tu API Key en los ajustes o contacta al administrador.");
-  }
+  try {
+    const apiKey = getApiKey(settings);
+    
+    if (!apiKey) {
+      return "⚠️ API Key no encontrada. Si estás en Vercel, asegúrate de haber configurado la variable de entorno GEMINI_API_KEY en el panel de control de Vercel.";
+    }
 
-  const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey });
 
   const systemInstruction = `
     Eres un experto en roleplay. Estás interpretando a ${character.name}.
@@ -93,7 +94,6 @@ export async function generateAIResponse(
     { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
   ] : undefined;
 
-  try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents,
@@ -111,22 +111,23 @@ export async function generateAIResponse(
 }
 
 export async function generateAIImage(prompt: string, settings: Settings) {
-  const envKey = typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined;
-  let apiKey = envKey;
-  
-  if (settings.superImages && settings.superImagesApiKey) {
-    apiKey = settings.superImagesApiKey;
-  } else if (settings.superNsfwMode && settings.customApiKey) {
-    apiKey = settings.customApiKey;
-  }
-  
-  if (!apiKey) {
-    throw new Error("API Key not found");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
-
   try {
+    const envKey = typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined;
+    let apiKey = envKey;
+    
+    if (settings.superImages && settings.superImagesApiKey) {
+      apiKey = settings.superImagesApiKey;
+    } else if (settings.superNsfwMode && settings.customApiKey) {
+      apiKey = settings.customApiKey;
+    }
+    
+    if (!apiKey) {
+      console.error("API Key not found for image generation");
+      return null;
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: [
