@@ -1,132 +1,95 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { Character, Message, Settings, UserProfile } from "../types";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const getApiKey = (settings: Settings) => {
+  const envKey = typeof process !== 'undefined' ? process.env.DEEPSEEK_API_KEY : undefined;
+  return settings.superNsfwMode && settings.customApiKey ? settings.customApiKey : envKey;
+};
 
 export async function generateAIResponse(
   character: Character,
   history: Message[],
   userProfile: UserProfile,
-  settings: Settings,
-  userImage?: string // Base64
+  settings: Settings
 ) {
-  const apiKey = settings.superNsfwMode && settings.customApiKey ? settings.customApiKey : GEMINI_API_KEY;
-  
-  if (!apiKey) {
-    throw new Error("API Key not found");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
-
-  const systemInstruction = `
-    Eres un experto en roleplay. Estás interpretando a ${character.name}.
-    Descripción de ${character.name}: ${character.description}
-    Personalidad: ${character.personality}
-    Escenario actual: ${character.scenario}
-    
-    El usuario es: ${userProfile.name} (${userProfile.description})
-    
-    Reglas:
-    1. Mantente siempre en el personaje.
-    2. No rompas la cuarta pared.
-    3. ${settings.shortWriting ? "Tus respuestas deben ser cortas y directas." : "Tus respuestas deben ser detalladas y narrativas."}
-    4. ${settings.nsfwMode || settings.superNsfwMode ? "El modo NSFW está activado. Puedes ser explícito, violento o sugerente si la situación lo requiere, sin censura moral." : "Mantén un tono apropiado para todos los públicos."}
-    5. Estilo de escritura: ${character.chatStyle === 'roleplay' ? "Roleplay clásico. Las acciones deben ir entre asteriscos (ej: *se ríe* Hola). No uses el estilo de chat de WhatsApp." : "Estilo WhatsApp. Escribe como si fuera un mensaje de texto real, sin asteriscos para acciones a menos que sea necesario."}
-  `;
-
-  const contents = history.map(msg => ({
-    role: msg.senderId === 'user' ? 'user' : 'model',
-    parts: [{ text: msg.text }]
-  }));
-
-  // Ensure contents is not empty
-  if (contents.length === 0) {
-    contents.push({
-      role: 'user',
-      parts: [{ text: "Hola. Por favor, inicia la conversación o continúa la historia según tu personaje y el escenario definido." }]
-    });
-  }
-
-  // Add the latest user image if provided
-  if (userImage) {
-    const lastMsg = contents[contents.length - 1];
-    if (lastMsg && lastMsg.role === 'user') {
-      lastMsg.parts.push({
-        inlineData: {
-          mimeType: "image/jpeg",
-          data: userImage.split(',')[1] // Remove prefix
-        }
-      } as any);
-    }
-  }
-
-  const safetySettings = (settings.nsfwMode || settings.superNsfwMode) ? [
-    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
-  ] : undefined;
-
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents,
-      config: {
-        systemInstruction,
-        safetySettings: safetySettings as any,
-      }
+    const apiKey = getApiKey(settings);
+    
+    if (!apiKey) {
+      return "⚠️ API Key de DeepSeek no encontrada. Asegúrate de haber configurado la variable de entorno DEEPSEEK_API_KEY en Vercel.";
+    }
+
+    const systemInstruction = `
+      Eres un experto en roleplay. Estás interpretando a ${character.name}.
+      Descripción de ${character.name}: ${character.description}
+      Personalidad: ${character.personality}
+      Escenario actual: ${character.scenario}
+      
+      El usuario es: ${userProfile.name} (${userProfile.description})
+      
+      Reglas:
+      1. Mantente siempre en el personaje.
+      2. No rompas la cuarta pared.
+      3. ${settings.shortWriting ? "Tus respuestas deben ser cortas y directas." : "Tus respuestas deben ser detalladas y narrativas."}
+      4. ${settings.nsfwMode || settings.superNsfwMode ? "El modo NSFW está activado. Puedes ser explícito, violento o sugerente si la situación lo requiere, sin censura moral." : "Mantén un tono apropiado para todos los públicos."}
+      5. Estilo de escritura: ${character.chatStyle === 'roleplay' ? "Roleplay clásico. Las acciones deben ir entre asteriscos (ej: *se ríe* Hola). No uses el estilo de chat de WhatsApp." : "Estilo WhatsApp. Escribe como si fuera un mensaje de texto real, sin asteriscos para acciones a menos que sea necesario."}
+    `;
+
+    const messages = [
+      { role: "system", content: systemInstruction }
+    ];
+
+    if (history.length === 0) {
+      messages.push({
+        role: "user",
+        content: "Hola. Por favor, inicia la conversación o continúa la historia según tu personaje y el escenario definido."
+      });
+    } else {
+      history.forEach((msg) => {
+        messages.push({
+          role: msg.senderId === 'user' ? 'user' : 'assistant',
+          content: msg.text
+        });
+      });
+    }
+
+    // Ensure last message is from user if we want a response
+    if (messages[messages.length - 1].role === 'assistant') {
+      messages.push({
+        role: "user",
+        content: "Continúa la historia/conversación."
+      });
+    }
+
+    const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: messages,
+        temperature: 1.0,
+        max_tokens: 2048
+      })
     });
 
-    return response.text || "No pude generar una respuesta.";
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || "Error en la API de DeepSeek");
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content || "No pude generar una respuesta.";
   } catch (error) {
     console.error("AI Error:", error);
-    return "Error al conectar con la IA. Revisa tu conexión o configuración.";
+    return "Error al conectar con DeepSeek. Revisa tu conexión o API Key.";
   }
 }
 
 export async function generateAIImage(prompt: string, settings: Settings) {
-  let apiKey = GEMINI_API_KEY;
-  
-  if (settings.superImages && settings.superImagesApiKey) {
-    apiKey = settings.superImagesApiKey;
-  } else if (settings.superNsfwMode && settings.customApiKey) {
-    apiKey = settings.customApiKey;
-  }
-  
-  if (!apiKey) {
-    throw new Error("API Key not found");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
-
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              text: `${prompt}. ${settings.nsfwMode || settings.superNsfwMode ? "Uncensored, explicit, realistic style." : "Safe for work, artistic style."}`,
-            },
-          ],
-        },
-      ],
-      config: {
-        imageConfig: {
-          aspectRatio: "1:1",
-        },
-      },
-    });
-
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
-    }
-    return null;
-  } catch (error) {
-    console.error("Image Generation Error:", error);
-    return null;
-  }
+  // DeepSeek doesn't support image generation, keeping a placeholder or using a free alternative if needed
+  // For now, we'll return null as DeepSeek is text-only
+  console.warn("DeepSeek does not support image generation.");
+  return null;
 }
