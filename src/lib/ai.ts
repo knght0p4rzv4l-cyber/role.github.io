@@ -1,7 +1,20 @@
 import { Character, Message, Settings, UserProfile } from "../types";
 
 const getApiKey = (settings: Settings) => {
-  const envKey = typeof process !== 'undefined' ? process.env.DEEPSEEK_API_KEY : undefined;
+  // Safer way to access env vars in Vite/Browser environments
+  let envKey: string | undefined;
+  try {
+    // Try Vite's import.meta.env first
+    envKey = (import.meta as any).env?.VITE_DEEPSEEK_API_KEY;
+    
+    // Fallback to process.env if defined (Vite's define plugin might have set this)
+    if (!envKey && typeof process !== 'undefined' && process.env) {
+      envKey = process.env.DEEPSEEK_API_KEY;
+    }
+  } catch (e) {
+    console.warn("Error accessing environment variables:", e);
+  }
+  
   return settings.superNsfwMode && settings.customApiKey ? settings.customApiKey : envKey;
 };
 

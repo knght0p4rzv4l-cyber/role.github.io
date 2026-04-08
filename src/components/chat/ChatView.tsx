@@ -85,22 +85,29 @@ export function ChatView({
     setInputText('');
     setUserImage(null);
     
-    if (character.isGroup && character.memberIds) {
-      // Group logic: each member responds (if not suspended)
-      for (const memberId of character.memberIds) {
-        if (character.suspendedMemberIds?.includes(memberId)) continue;
-        const member = storeCharacters.find(c => c.id === memberId);
-        if (member) {
-          await respondAs(member);
+    setIsTyping(true);
+    try {
+      if (character.isGroup && character.memberIds) {
+        // Group logic: each member responds (if not suspended)
+        for (const memberId of character.memberIds) {
+          if (character.suspendedMemberIds?.includes(memberId)) continue;
+          const member = store.characters.find(c => c.id === memberId);
+          if (member) {
+            await respondAs(member, false);
+          }
         }
+      } else {
+        await respondAs(character, false);
       }
-    } else {
-      await respondAs(character);
+    } catch (error) {
+      console.error("Error in handleSend:", error);
+    } finally {
+      setIsTyping(false);
     }
   };
 
-  const respondAs = async (char: Character) => {
-    setIsTyping(true);
+  const respondAs = async (char: Character, toggleTyping: boolean = true) => {
+    if (toggleTyping) setIsTyping(true);
     try {
       const history = chat?.messages || [];
       const responseText = await generateAIResponse(
@@ -126,12 +133,12 @@ export function ChatView({
         id: Date.now().toString(),
         senderId: 'system',
         senderName: 'Sistema',
-        text: "Error al generar respuesta. Revisa tu configuración o API Key.",
+        text: "Error al generar respuesta. Revisa tu configuración o API Key de DeepSeek.",
         timestamp: Date.now(),
       };
       onAddMessage(errorMsg);
     } finally {
-      setIsTyping(false);
+      if (toggleTyping) setIsTyping(false);
     }
   };
 
@@ -152,21 +159,35 @@ export function ChatView({
     if (!inputText.trim()) return;
     
     setIsTyping(true);
-    const imageUrl = await generateAIImage(inputText, settings);
-    
-    if (imageUrl) {
-      const aiMsg: Message = {
-        id: Date.now().toString(),
-        senderId: character.id,
-        senderName: character.name,
-        text: `He generado esta imagen para ti: "${inputText}"`,
-        timestamp: Date.now(),
-        image: imageUrl,
-      };
-      onAddMessage(aiMsg, true);
+    try {
+      const imageUrl = await generateAIImage(inputText, settings);
+      
+      if (imageUrl) {
+        const aiMsg: Message = {
+          id: Date.now().toString(),
+          senderId: character.id,
+          senderName: character.name,
+          text: `He generado esta imagen para ti: "${inputText}"`,
+          timestamp: Date.now(),
+          image: imageUrl,
+        };
+        onAddMessage(aiMsg, true);
+        setInputText('');
+      } else {
+        const errorMsg: Message = {
+          id: Date.now().toString(),
+          senderId: 'system',
+          senderName: 'Sistema',
+          text: "No se pudo generar la imagen. DeepSeek no soporta generación de imágenes nativa.",
+          timestamp: Date.now(),
+        };
+        onAddMessage(errorMsg);
+      }
+    } catch (error) {
+      console.error("Error in handleGenerateImage:", error);
+    } finally {
+      setIsTyping(false);
     }
-    setIsTyping(false);
-    setInputText('');
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

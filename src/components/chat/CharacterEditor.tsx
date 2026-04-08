@@ -29,7 +29,11 @@ export function CharacterEditor({ character, characters, onSave, onCancel, onDel
   const [chatStyle, setChatStyle] = useState<'whatsapp' | 'roleplay'>(character?.chatStyle || 'whatsapp');
   const [memberIds, setMemberIds] = useState<string[]>(character?.memberIds || []);
   const [suspendedMemberIds, setSuspendedMemberIds] = useState<string[]>(character?.suspendedMemberIds || []);
-  const [voiceSettings, setVoiceSettings] = useState(character?.voiceSettings || { gender: 'female', tone: 'sweet' });
+  const [voiceSettings, setVoiceSettings] = useState<{
+    gender: 'male' | 'female';
+    tone: 'sweet' | 'deep';
+    sampleAudio?: string;
+  }>(character?.voiceSettings || { gender: 'female', tone: 'sweet' });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
 
