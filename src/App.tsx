@@ -14,6 +14,7 @@ import { ProfileView } from './components/profile/ProfileView';
 import { CharacterEditor } from './components/chat/CharacterEditor';
 import { Character } from './types';
 import { Plus } from 'lucide-react';
+import { cn } from './lib/utils';
 
 export default function App() {
   const store = useStore();
@@ -24,6 +25,14 @@ export default function App() {
 
   const activeChat = store.chats.find(c => c.id === activeChatId);
   const activeCharacter = store.characters.find(c => c.id === activeChatId);
+
+  useEffect(() => {
+    if (store.settings.darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [store.settings.darkMode]);
 
   const handleCreateChat = () => {
     setEditingCharacter(null);
@@ -72,7 +81,10 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-ios-bg pb-20 pt-24">
+    <div className={cn(
+      "min-h-screen pb-20 pt-24 transition-colors duration-300",
+      store.settings.darkMode ? "bg-black" : "bg-ios-bg"
+    )}>
       <NavBar
         title={
           activeTab === 'chats' ? 'Chats' :

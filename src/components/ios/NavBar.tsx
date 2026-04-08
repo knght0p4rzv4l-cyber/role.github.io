@@ -22,7 +22,7 @@ export function NavBar({ title, leftAction, rightAction, onBack }: NavBarProps) 
         )}
       </div>
       
-      <h1 className="text-lg font-semibold text-center flex-1 truncate px-2">
+      <h1 className="text-lg font-semibold text-center flex-1 truncate px-2 dark:text-white">
         {title}
       </h1>
       

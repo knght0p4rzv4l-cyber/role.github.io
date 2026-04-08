@@ -66,33 +66,33 @@ export function ProfileView({ profile, onSave }: ProfileViewProps) {
         </Button>
       </div>
 
-      <div className="bg-white rounded-xl p-4 space-y-4 shadow-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 space-y-4 shadow-sm">
         <div className="space-y-1.5">
-          <Label className="text-xs text-ios-text-secondary ml-1">Tu Nombre</Label>
+          <Label className="text-xs text-ios-text-secondary dark:text-gray-400 ml-1">Tu Nombre</Label>
           <Input 
             value={name} 
             onChange={(e) => setName(e.target.value)} 
             onBlur={handleBlur}
             placeholder="Tu nombre en el roleplay"
-            className="border-none px-0 focus-visible:ring-0 text-lg font-medium"
+            className="border-none px-0 focus-visible:ring-0 text-lg font-medium bg-transparent dark:text-white"
           />
         </div>
         
-        <div className="h-px bg-gray-100" />
+        <div className="h-px bg-gray-100 dark:bg-gray-700" />
 
         <div className="space-y-1.5">
-          <Label className="text-xs text-ios-text-secondary ml-1">Tu Descripción / Bio</Label>
+          <Label className="text-xs text-ios-text-secondary dark:text-gray-400 ml-1">Tu Descripción / Bio</Label>
           <Textarea 
             value={description} 
             onChange={(e) => setDescription(e.target.value)} 
             onBlur={handleBlur}
             placeholder="Describe quién eres en las historias..."
-            className="border-none px-0 focus-visible:ring-0 resize-none min-h-[100px]"
+            className="border-none px-0 focus-visible:ring-0 resize-none min-h-[100px] bg-transparent dark:text-white"
           />
         </div>
       </div>
 
-      <p className="px-4 text-xs text-ios-text-secondary">
+      <p className="px-4 text-xs text-ios-text-secondary dark:text-gray-500">
         Esta información será usada por la IA para saber cómo dirigirse a ti y entender tu contexto en el roleplay.
       </p>
     </div>

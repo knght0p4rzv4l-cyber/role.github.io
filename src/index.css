@@ -23,20 +23,40 @@
   @apply bg-ios-nav/80 backdrop-blur-md border-b border-ios-border;
 }
 
+.dark .ios-nav-blur {
+  @apply bg-[#1C1C1E]/80 border-[#38383A];
+}
+
 .ios-tab-blur {
   @apply bg-ios-nav/80 backdrop-blur-md border-t border-ios-border;
+}
+
+.dark .ios-tab-blur {
+  @apply bg-[#1C1C1E]/80 border-[#38383A];
 }
 
 .ios-bubble-user {
   @apply bg-ios-bubble-user rounded-2xl rounded-tr-none px-3 py-2 shadow-sm relative;
 }
 
+.dark .ios-bubble-user {
+  @apply bg-[#056162] text-white;
+}
+
 .ios-bubble-ai {
   @apply bg-ios-bubble-ai rounded-2xl rounded-tl-none px-3 py-2 shadow-sm relative;
 }
 
+.dark .ios-bubble-ai {
+  @apply bg-[#262628] text-white;
+}
+
 .ios-input {
   @apply bg-white border-none rounded-full px-4 py-2 focus:ring-0 text-sm;
+}
+
+.dark .ios-input {
+  @apply bg-[#2C2C2E] text-white;
 }
 
 /* Hide scrollbar but keep functionality */

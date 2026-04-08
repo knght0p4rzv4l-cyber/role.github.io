@@ -22,15 +22,15 @@ export function ChatList({ characters, chats, onChatSelect, onEditCharacter }: C
   }
 
   return (
-    <div className="space-y-0.5 bg-white rounded-xl overflow-hidden shadow-sm">
+    <div className="space-y-0.5 bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm">
       {characters.map((char) => {
         const chat = chats.find(c => c.characterId === char.id);
         return (
           <div
             key={char.id}
-            className="flex items-center px-4 py-3 active:bg-gray-100 transition-colors border-b border-gray-100 last:border-0"
+            className="flex items-center px-4 py-3 active:bg-gray-100 dark:active:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0"
           >
-            <div className="flex-1 flex items-center space-x-3" onClick={() => onChatSelect(char.id)}>
+            <div className="flex-1 flex items-center space-x-3 cursor-pointer" onClick={() => onChatSelect(char.id)}>
               <Avatar className="w-14 h-14">
                 <AvatarImage src={char.avatar} />
                 <AvatarFallback className="bg-ios-blue text-white text-xl">
@@ -40,14 +40,19 @@ export function ChatList({ characters, chats, onChatSelect, onEditCharacter }: C
               
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline">
-                  <h3 className="font-semibold text-[17px] truncate">{char.name}</h3>
+                  <div className="flex items-center space-x-2 min-w-0">
+                    <h3 className="font-semibold text-[17px] truncate dark:text-white">{char.name}</h3>
+                    {chat?.unreadCount && chat.unreadCount > 0 ? (
+                      <div className="w-2.5 h-2.5 bg-green-500 rounded-full flex-shrink-0" />
+                    ) : null}
+                  </div>
                   {chat?.lastTimestamp && (
-                    <span className="text-xs text-ios-text-secondary">
+                    <span className="text-xs text-ios-text-secondary dark:text-gray-400">
                       {format(chat.lastTimestamp, 'HH:mm')}
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-ios-text-secondary truncate pr-4">
+                <p className="text-sm text-ios-text-secondary dark:text-gray-400 truncate pr-4">
                   {chat?.lastMessage || char.description}
                 </p>
               </div>
@@ -55,7 +60,7 @@ export function ChatList({ characters, chats, onChatSelect, onEditCharacter }: C
             
             <button 
               onClick={() => onEditCharacter(char)}
-              className="p-2 text-ios-blue hover:bg-gray-50 rounded-full"
+              className="p-2 text-ios-blue hover:bg-gray-50 dark:hover:bg-gray-700 rounded-full"
             >
               <Info className="w-6 h-6" />
             </button>

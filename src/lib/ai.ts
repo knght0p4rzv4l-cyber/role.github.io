@@ -31,6 +31,7 @@ export async function generateAIResponse(
     2. No rompas la cuarta pared.
     3. ${settings.shortWriting ? "Tus respuestas deben ser cortas y directas." : "Tus respuestas deben ser detalladas y narrativas."}
     4. ${settings.nsfwMode || settings.superNsfwMode ? "El modo NSFW está activado. Puedes ser explícito, violento o sugerente si la situación lo requiere, sin censura moral." : "Mantén un tono apropiado para todos los públicos."}
+    5. Estilo de escritura: ${character.chatStyle === 'roleplay' ? "Roleplay clásico. Las acciones deben ir entre asteriscos (ej: *se ríe* Hola). No uses el estilo de chat de WhatsApp." : "Estilo WhatsApp. Escribe como si fuera un mensaje de texto real, sin asteriscos para acciones a menos que sea necesario."}
   `;
 
   const contents = history.map(msg => ({
@@ -76,7 +77,13 @@ export async function generateAIResponse(
 }
 
 export async function generateAIImage(prompt: string, settings: Settings) {
-  const apiKey = settings.superNsfwMode && settings.customApiKey ? settings.customApiKey : GEMINI_API_KEY;
+  let apiKey = GEMINI_API_KEY;
+  
+  if (settings.superImages && settings.superImagesApiKey) {
+    apiKey = settings.superImagesApiKey;
+  } else if (settings.superNsfwMode && settings.customApiKey) {
+    apiKey = settings.customApiKey;
+  }
   
   if (!apiKey) {
     throw new Error("API Key not found");

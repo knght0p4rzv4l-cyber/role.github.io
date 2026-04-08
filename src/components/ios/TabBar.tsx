@@ -29,13 +29,13 @@ export function TabBar({ activeTab, onTabChange }: TabBarProps) {
             <Icon
               className={cn(
                 "w-6 h-6 mb-1 transition-colors",
-                isActive ? "text-ios-blue" : "text-ios-text-secondary"
+                isActive ? "text-ios-blue" : "text-ios-text-secondary dark:text-gray-400"
               )}
             />
             <span
               className={cn(
                 "text-[10px] font-medium",
-                isActive ? "text-ios-blue" : "text-ios-text-secondary"
+                isActive ? "text-ios-blue" : "text-ios-text-secondary dark:text-gray-400"
               )}
             >
               {tab.label}

@@ -5,6 +5,7 @@ import { ChatBubble } from '../ios/ChatBubble';
 import { Send, Image as ImageIcon, Sparkles, Trash2, Plus, Camera, Wand2 } from 'lucide-react';
 import { generateAIResponse, generateAIImage } from '@/lib/ai';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useStore } from '@/hooks/useStore';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -14,7 +15,7 @@ interface ChatViewProps {
   userProfile: UserProfile;
   settings: Settings;
   onBack: () => void;
-  onAddMessage: (msg: Message) => void;
+  onAddMessage: (msg: Message, isFromAI?: boolean) => void;
   onClearChat: () => void;
 }
 
@@ -34,6 +35,17 @@ export function ChatView({
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const store = useStore();
+  const storeCharacters = store.characters;
+
+  useEffect(() => {
+    if (settings.autoMessages && !isTyping) {
+      const timer = setTimeout(() => {
+        handleContinue();
+      }, 10000 + Math.random() * 20000); // Random interval between 10-30s
+      return () => clearTimeout(timer);
+    }
+  }, [chat?.messages, settings.autoMessages, isTyping]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -49,7 +61,11 @@ export function ChatView({
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [chat?.messages, isTyping]);
+    // Reset unread when viewing chat
+    if (chat?.unreadCount && chat.unreadCount > 0) {
+      store.resetUnread(character.id);
+    }
+  }, [chat?.messages, isTyping, chat?.unreadCount]);
 
   const handleSend = async () => {
     if (!inputText.trim() && !userImage) return;
@@ -63,30 +79,56 @@ export function ChatView({
       image: userImage || undefined,
     };
 
-    onAddMessage(userMsg);
+    onAddMessage(userMsg, false);
     setInputText('');
     setUserImage(null);
-    setIsTyping(true);
+    
+    if (character.isGroup && character.memberIds) {
+      // Group logic: each member responds
+      for (const memberId of character.memberIds) {
+        const member = storeCharacters.find(c => c.id === memberId);
+        if (member) {
+          await respondAs(member);
+        }
+      }
+    } else {
+      await respondAs(character);
+    }
+  };
 
+  const respondAs = async (char: Character) => {
+    setIsTyping(true);
     const history = chat?.messages || [];
     const responseText = await generateAIResponse(
-      character,
-      [...history, userMsg],
+      char,
+      history,
       userProfile,
       settings,
-      userImage || undefined
+      undefined
     );
 
     const aiMsg: Message = {
-      id: (Date.now() + 1).toString(),
-      senderId: character.id,
-      senderName: character.name,
+      id: Date.now().toString() + Math.random(),
+      senderId: char.id,
+      senderName: char.name,
+      senderAvatar: char.avatar,
       text: responseText,
       timestamp: Date.now(),
     };
 
-    onAddMessage(aiMsg);
+    onAddMessage(aiMsg, true);
     setIsTyping(false);
+  };
+
+  const handleContinue = async () => {
+    if (character.isGroup && character.memberIds) {
+      // Random member continues or all? Let's pick one random for "continue"
+      const randomId = character.memberIds[Math.floor(Math.random() * character.memberIds.length)];
+      const member = storeCharacters.find(c => c.id === randomId);
+      if (member) await respondAs(member);
+    } else {
+      await respondAs(character);
+    }
   };
 
   const handleGenerateImage = async () => {
@@ -104,7 +146,7 @@ export function ChatView({
         timestamp: Date.now(),
         image: imageUrl,
       };
-      onAddMessage(aiMsg);
+      onAddMessage(aiMsg, true);
     }
     setIsTyping(false);
     setInputText('');
@@ -136,16 +178,32 @@ export function ChatView({
       <div 
         ref={scrollRef}
         className="flex-1 overflow-y-auto px-4 pt-28 pb-24 space-y-4 no-scrollbar"
-        style={{ backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")', backgroundSize: 'contain' }}
+        style={{ 
+          backgroundImage: `url("${settings.chatBackground || 'https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'}")`, 
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        }}
       >
         {chat?.messages.map((msg) => (
           <ChatBubble key={msg.id} message={msg} isUser={msg.senderId === 'user'} />
         ))}
         {isTyping && (
           <div className="flex justify-start">
-            <div className="bg-white rounded-2xl px-4 py-2 shadow-sm italic text-xs text-gray-500">
-              {character.name} está escribiendo...
+            <div className="bg-white dark:bg-gray-800 rounded-2xl px-4 py-2 shadow-sm italic text-xs text-gray-500 dark:text-gray-400">
+              Alguien está escribiendo...
             </div>
+          </div>
+        )}
+        
+        {!settings.autoMessages && !isTyping && chat?.messages.length && chat.messages.length > 0 && (
+          <div className="flex justify-center py-2">
+            <button 
+              onClick={handleContinue}
+              className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white text-xs px-4 py-1.5 rounded-full border border-white/20 transition-colors flex items-center space-x-2"
+            >
+              <Sparkles className="w-3 h-3" />
+              <span>Continuar historia</span>
+            </button>
           </div>
         )}
       </div>
@@ -180,10 +238,10 @@ export function ChatView({
                     handleGenerateImage();
                     setShowActions(false);
                   }}
-                  disabled={!inputText.trim() || !settings.aiImages}
+                  disabled={!inputText.trim() || (!settings.aiImages && !settings.superImages)}
                   className={cn(
                     "w-full flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left",
-                    (!inputText.trim() || !settings.aiImages) && "opacity-50 grayscale"
+                    (!inputText.trim() || (!settings.aiImages && !settings.superImages)) && "opacity-50 grayscale"
                   )}
                 >
                   <div className="bg-purple-500 p-1.5 rounded-lg text-white">

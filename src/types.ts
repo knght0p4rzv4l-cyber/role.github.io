@@ -8,12 +8,14 @@ export interface Character {
   firstMessage: string;
   isGroup?: boolean;
   memberIds?: string[]; // For groups
+  chatStyle: 'whatsapp' | 'roleplay';
 }
 
 export interface Message {
   id: string;
   senderId: string; // 'user' or characterId
   senderName: string;
+  senderAvatar?: string; // For groups
   text: string;
   timestamp: number;
   image?: string; // Base64 or local URL
@@ -25,6 +27,7 @@ export interface Chat {
   messages: Message[];
   lastMessage?: string;
   lastTimestamp?: number;
+  unreadCount: number;
 }
 
 export interface UserProfile {
@@ -38,5 +41,10 @@ export interface Settings {
   superNsfwMode: boolean;
   shortWriting: boolean;
   aiImages: boolean;
+  superImages: boolean;
+  darkMode: boolean;
+  autoMessages: boolean;
+  chatBackground?: string;
   customApiKey?: string;
+  superImagesApiKey?: string;
 }
